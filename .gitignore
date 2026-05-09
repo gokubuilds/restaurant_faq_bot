@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+venv/
+env/
+ENV/
+
+# Project-specific directories
+faiss_db/
+uploaded_pdfs/
+
+# Database
+*.db
+chatbot.db
+
+# Files
+dummy.py
+
+# IDE
+.vscode/
+.idea/
+*.swp
