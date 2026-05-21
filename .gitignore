@@ -17,6 +17,9 @@ uploaded_pdfs/
 *.db
 chatbot.db
 
+# Environment
+.env
+
 # Files
 dummy.py
 

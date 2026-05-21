@@ -23,8 +23,10 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_ollama import OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_ollama import ChatOllama
+from langchain_groq import ChatGroq
 from langchain_classic.chains.retrieval_qa.base import RetrievalQA
 from langchain_classic.prompts import PromptTemplate
+from langchain_core.documents import Document
 
 from database import ChatHistory, KnowledgeBase, get_db, init_db, SessionLocal
 
@@ -33,6 +35,7 @@ from database import ChatHistory, KnowledgeBase, get_db, init_db, SessionLocal
 # ─────────────────────────────────────────────
 FAISS_DIR    = "./faiss_db"           # persists until admin clears it
 UPLOAD_DIR   = "./uploaded_pdfs"      # all uploaded PDFs stored here
+TEMP_TEXT_FILE = "./temp_knowledge.txt"  # temporary text file for text-based knowledge
 OLLAMA_BASE_URL = "http://localhost:11434"
 ADMIN_TOKEN  = "Admin123"
 
@@ -60,6 +63,15 @@ PROMPT_TEMPLATE = PromptTemplate(
         "Answer:"
     )
 )
+
+#----------------------------------------------
+# api-key from env
+#----------------------------------------------
+import os
+from dotenv import load_dotenv
+
+load_dotenv() # Loads the .env file
+api_key = os.getenv("groq_api")
 
 # ─────────────────────────────────────────────
 # Global RAG state
@@ -97,11 +109,17 @@ def build_rag_chain(pdf_path: str, pdf_name: str) -> Optional[RetrievalQA]:
         vector_store.save_local(FAISS_DIR, index_name=FAISS_INDEX_NAME)
         print(f"[Build] Stored {len(chunks)} chunks in persistent FAISS index.")
 
-        llm = ChatOllama(
-            model="llama3",
-            temperature=0.3,
-            num_predict=250,
-        )
+        # llm = ChatOllama(
+        #     model="llama3",
+        #     temperature=0.3,
+        #     num_predict=250,
+        # )
+        llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
+    temperature=0.3,
+    api_key=api_key
+    # api_key="your-api-key-here" # Or set as GROQ_API_KEY env var
+)
 
         chain = RetrievalQA.from_chain_type(
             llm=llm,
@@ -134,6 +152,97 @@ def build_rag_chain(pdf_path: str, pdf_name: str) -> Optional[RetrievalQA]:
         return None
 
 
+def add_text_to_knowledge_base(text_content: str, source_name: str) -> Optional[RetrievalQA]:
+    """
+    Add text content to the existing knowledge base (FAISS index).
+    1. Save text to temporary file (create if not exists, rewrite if exists)
+    2. Read content from file and convert to chunks
+    3. Create embeddings and store in FAISS DB
+    """
+    global rag_chain, current_pdf_name
+    try:
+        # Save text to temporary file (create if not exists, rewrite if exists)
+        with open(TEMP_TEXT_FILE, "w", encoding="utf-8") as f:
+            f.write(text_content)
+        print(f"[Text] Saved text to temporary file: {TEMP_TEXT_FILE}")
+        
+        # Read content from the temporary file
+        with open(TEMP_TEXT_FILE, "r", encoding="utf-8") as f:
+            file_content = f.read()
+        
+        # Create Document from file content
+        doc = Document(page_content=file_content, metadata={"source": source_name})
+        
+        # Split text into chunks
+        splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        chunks = splitter.split_documents([doc])
+        
+        print(f"[Text] Created {len(chunks)} chunks from text file")
+
+        embeddings = OllamaEmbeddings(model="all-minilm:l6-v2")
+
+        # Check if FAISS index exists
+        index_file = Path(FAISS_DIR) / f"{FAISS_INDEX_NAME}.faiss"
+        
+        if index_file.exists():
+            # Load existing index and add new documents
+            vector_store = FAISS.load_local(
+                FAISS_DIR,
+                embeddings,
+                index_name=FAISS_INDEX_NAME,
+                allow_dangerous_deserialization=True,
+            )
+            vector_store.add_documents(chunks)
+            vector_store.save_local(FAISS_DIR, index_name=FAISS_INDEX_NAME)
+            print(f"[Text] Added {len(chunks)} chunks to existing FAISS index")
+        else:
+            # Create new index from text
+            vector_store = FAISS.from_documents(chunks, embeddings)
+            vector_store.save_local(FAISS_DIR, index_name=FAISS_INDEX_NAME)
+            print(f"[Text] Created new FAISS index with {len(chunks)} chunks")
+
+        # Create or update RAG chain
+        llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
+            temperature=0.3,
+            api_key=api_key
+        )
+
+        chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            chain_type="stuff",
+            retriever=vector_store.as_retriever(search_kwargs={"k": 4}),
+            chain_type_kwargs={"prompt": PROMPT_TEMPLATE},
+            return_source_documents=False,
+        )
+
+        # Update current knowledge source name
+        if not current_pdf_name:
+            current_pdf_name = source_name
+
+        # Persist metadata to DB
+        db = SessionLocal()
+        try:
+            existing_kb = db.query(KnowledgeBase).filter(KnowledgeBase.is_active == True).first()
+            if not existing_kb:
+                db.add(KnowledgeBase(
+                    filename=source_name,
+                    filepath="text_input",
+                    uploaded_at=datetime.utcnow(),
+                    is_active=True,
+                ))
+            db.commit()
+        finally:
+            db.close()
+
+        rag_chain = chain
+        return chain
+
+    except Exception as e:
+        print(f"[Text] Error adding text to knowledge base: {e}")
+        return None
+
+
 def load_existing_chain() -> Optional[RetrievalQA]:
     """
     On startup, if a FAISS index already exists on disk (from a previous session),
@@ -152,7 +261,13 @@ def load_existing_chain() -> Optional[RetrievalQA]:
             allow_dangerous_deserialization=True,   # safe — we wrote this file ourselves
         )
 
-        llm = ChatOllama(model="llama3", temperature=0.3, num_predict=150)
+        # llm = ChatOllama(model="llama3", temperature=0.3, num_predict=150)
+        llm = ChatGroq(
+                model="llama-3.3-70b-versatile",
+                temperature=0.3,
+                api_key=api_key
+                # api_key="your-api-key-here" # Or set as GROQ_API_KEY env var
+            )
 
         chain = RetrievalQA.from_chain_type(
             llm=llm,
@@ -216,6 +331,11 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+
+
+class TextUploadRequest(BaseModel):
+    text_content: str
+    source_name: str = "User Text Input"
 
 
 class ChatResponse(BaseModel):
@@ -363,9 +483,41 @@ async def upload_pdf(file: UploadFile = File(...)):
     }
 
 
+@app.post("/admin/upload_text", dependencies=[Depends(verify_admin)])
+async def upload_text(req: TextUploadRequest):
+    """Add text content to the knowledge base (FAISS vector store)."""
+    global rag_chain
+
+    if not req.text_content or not req.text_content.strip():
+        raise HTTPException(status_code=400, detail="Text content cannot be empty.")
+
+    print(f"[Admin] Adding text to knowledge base: {req.source_name}")
+    print(f"[Admin] Text length: {len(req.text_content)} characters")
+
+    new_chain = add_text_to_knowledge_base(req.text_content, req.source_name)
+    if new_chain is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to add text to knowledge base. Check server logs."
+        )
+
+    rag_chain = new_chain
+    print("[Admin] Text added to RAG chain successfully.")
+
+    return {
+        "status": "success",
+        "source": req.source_name,
+        "text_length": len(req.text_content),
+        "message": (
+            f"Text content added to knowledge base. "
+            "The chatbot is ready to answer questions based on the new content."
+        ),
+    }
+
+
 @app.post("/admin/clear_knowledge", dependencies=[Depends(verify_admin)])
 async def clear_knowledge():
-    """Permanently wipe the FAISS index and PDF metadata."""
+    """Permanently wipe the FAISS index, PDF metadata, and temporary text file."""
     global rag_chain, current_pdf_name
 
     rag_chain        = None
@@ -379,6 +531,14 @@ async def clear_knowledge():
             print("[Admin] FAISS index cleared.")
         except Exception as e:
             print(f"[Admin] Warning: could not fully clear FAISS index: {e}")
+
+    # Delete temporary text file
+    if os.path.exists(TEMP_TEXT_FILE):
+        try:
+            os.remove(TEMP_TEXT_FILE)
+            print(f"[Admin] Temporary text file deleted: {TEMP_TEXT_FILE}")
+        except Exception as e:
+            print(f"[Admin] Warning: could not delete temporary text file: {e}")
 
     # Wipe KB metadata from DB
     db = SessionLocal()

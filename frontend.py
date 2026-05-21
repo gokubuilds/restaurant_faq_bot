@@ -199,6 +199,25 @@ html, body, [data-testid="stAppViewContainer"] {
 }
 
 .stSpinner { color: #00d4ff !important; }
+
+/* Floating Admin Button */
+.floating-admin-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 999;
+}
+.floating-admin-btn button {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    padding: 0 !important;
+    box-shadow: 0 4px 12px rgba(0, 212, 255, 0.4) !important;
+}
+.floating-admin-btn button:hover {
+    transform: scale(1.1);
+}
 </style>
 """
 
@@ -214,6 +233,8 @@ if "messages"        not in st.session_state:
     st.session_state.messages        = []
 if "admin_logged_in" not in st.session_state:
     st.session_state.admin_logged_in = False
+if "show_admin_modal" not in st.session_state:
+    st.session_state.show_admin_modal = False
 
 
 # ─────────────────────────────────────────────
@@ -429,15 +450,301 @@ with st.sidebar:
 
 
 # ─────────────────────────────────────────────
-# Main Chat UI
+# Admin Panel Modal (Opens with button)
 # ─────────────────────────────────────────────
+col1, col2, col3 = st.columns([0.8, 0.1, 0.1])
+with col3:
+    if st.button("⚙️", help="Admin Panel", key="floating_admin_btn"):
+        st.session_state.show_admin_modal = not st.session_state.show_admin_modal
+
+if st.session_state.show_admin_modal:
+    st.markdown("---")
+    admin_container = st.container()
+    with admin_container:
+        st.markdown("<h3 style='text-align: center; color: #00d4ff;'>🔒 Admin Panel</h3>", unsafe_allow_html=True)
+        
+        if not st.session_state.admin_logged_in:
+            # Login Form
+            st.markdown("<div style='background: rgba(26, 31, 46, 0.8); border: 1px solid #00d4ff; border-radius: 12px; padding: 20px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+            st.markdown("#### Admin Login")
+            
+            login_col1, login_col2 = st.columns(2)
+            with login_col1:
+                username = st.text_input("👤 Username", placeholder="Enter username", key="modal_user")
+            with login_col2:
+                password = st.text_input("🔐 Password", type="password", placeholder="Enter password", key="modal_pass")
+            
+            login_btn_col1, login_btn_col2, login_btn_col3 = st.columns([1, 1, 1])
+            with login_btn_col2:
+                if st.button("🔓 Login", use_container_width=True, key="modal_login"):
+                    if username.strip() == "Admin" and password == "Admin123":
+                        st.session_state.admin_logged_in = True
+                        st.success("✅ Logged in successfully!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Invalid credentials")
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        else:
+            # Admin Dashboard After Login
+            st.markdown(f"<div style='color: #00ff78; font-weight: bold; margin-bottom: 15px;'>✅ Logged in as: <span style='color: #00d4ff;'>Admin</span></div>", unsafe_allow_html=True)
+            
+            # Top Controls
+            btn_col1, btn_col2, btn_col3 = st.columns(3)
+            with btn_col1:
+                if st.button("🔄 Refresh", use_container_width=True, key="modal_refresh"):
+                    st.rerun()
+            with btn_col2:
+                if st.button("Close Panel", use_container_width=True, key="modal_close"):
+                    st.session_state.show_admin_modal = False
+                    st.rerun()
+            with btn_col3:
+                if st.button("🚪 Logout", use_container_width=True, key="modal_logout"):
+                    st.session_state.admin_logged_in = False
+                    st.session_state.show_admin_modal = False
+                    st.rerun()
+            
+            st.markdown("---")
+            
+            # Tabs for different admin sections
+            tab1, tab2, tab3, tab4 = st.tabs(["📡 KB Status", "📤 Upload PDF", "🗑️ Clear KB", "📊 Chat Logs"])
+            
+            with tab1:
+                st.markdown("### Knowledge Base Status")
+                kb = fetch_kb_status()
+                col1, col2 = st.columns(2)
+                with col1:
+                    if kb["kb_loaded"]:
+                        pdf_label = kb.get("current_pdf") or "Unknown PDF"
+                        st.markdown(f'<div class="kb-status-active">🟢 Status: <b>ACTIVE</b></div>', unsafe_allow_html=True)
+                        st.markdown(f"📄 **PDF Loaded:** {pdf_label}")
+                    else:
+                        st.markdown(f'<div class="kb-status-inactive">🔴 Status: <b>INACTIVE</b></div>', unsafe_allow_html=True)
+                        st.markdown("ℹ️ No knowledge base is currently loaded")
+                with col2:
+                    st.info("💾 Vector store metadata will be shown here after upload")
+            
+            with tab2:
+                st.markdown("### Upload Knowledge Base Content")
+                st.caption("Add content to your knowledge base via PDF upload or text input")
+                
+                # Subtabs for PDF and Text
+                subtab1, subtab2 = st.tabs(["📄 PDF Upload", "📝 Text Input"])
+                
+                with subtab1:
+                    st.markdown("#### 📄 Upload PDF")
+                    st.caption("Upload a PDF file to build or replace your knowledge base")
+                    
+                    uploaded_file = st.file_uploader(
+                        "Choose a PDF file",
+                        type=["pdf"],
+                        key="modal_uploader"
+                    )
+                    
+                    if uploaded_file:
+                        file_size_mb = uploaded_file.size / (1024 * 1024)
+                        st.divider()
+                        
+                        # File Details
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("📄 Filename", uploaded_file.name)
+                        with col2:
+                            st.metric("📊 File Size", f"{file_size_mb:.2f} MB")
+                        
+                        st.divider()
+                        
+                        # Action Buttons
+                        btn_col1, btn_col2 = st.columns(2)
+                        with btn_col1:
+                            if st.button("⬆️ Upload & Build KB", use_container_width=True, key="modal_upload_btn"):
+                                with st.spinner("🔄 Building knowledge base… This may take a minute"):
+                                    try:
+                                        resp = requests.post(
+                                            f"{BACKEND_URL}/admin/upload_pdf",
+                                            headers={"x-admin-token": ADMIN_TOKEN},
+                                            files={"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")},
+                                            timeout=300
+                                        )
+                                        if resp.status_code == 200:
+                                            data = resp.json()
+                                            st.success("✅ Knowledge base updated successfully!")
+                                            st.balloons()
+                                            st.rerun()
+                                        else:
+                                            detail = resp.json().get("detail", resp.text) if "application/json" in resp.headers.get("content-type", "") else resp.text
+                                            st.error(f"❌ Error {resp.status_code}: {detail}")
+                                    except Exception as e:
+                                        st.error(f"❌ Connection error: {e}")
+                        
+                        with btn_col2:
+                            if st.button("❌ Cancel", use_container_width=True, key="modal_cancel_upload"):
+                                st.rerun()
+                    else:
+                        st.info("👆 Select a PDF file above to get started")
+                
+                with subtab2:
+                    st.markdown("#### 📝 Add Text Content")
+                    st.caption("Paste text content to add to your knowledge base (menu, hours, policies, FAQs, etc.)")
+                    
+                    # Source name for reference
+                    source_name = st.text_input(
+                        "📋 Source Name (optional)",
+                        placeholder="E.g., Menu, Hours & Policies, FAQ",
+                        value="User Text Input",
+                        key="text_source_name"
+                    )
+                    
+                    # Text input area
+                    text_content = st.text_area(
+                        "📝 Paste your text here",
+                        placeholder="E.g., Menu items, restaurant hours, policies, FAQs, etc.",
+                        height=200,
+                        key="text_input_area"
+                    )
+                    
+                    # Display stats when text is entered
+                    if text_content and text_content.strip():
+                        st.divider()
+                        
+                        # Text statistics
+                        char_count = len(text_content)
+                        word_count = len(text_content.split())
+                        
+                        stat_col1, stat_col2 = st.columns(2)
+                        with stat_col1:
+                            st.metric("📊 Characters", f"{char_count:,}")
+                        with stat_col2:
+                            st.metric("📄 Words", f"{word_count:,}")
+                        
+                        st.divider()
+                        
+                        # Submit and Clear Buttons
+                        submit_col, clear_col = st.columns([2, 1])
+                        
+                        with submit_col:
+                            if st.button("✅ Add to Knowledge Base", use_container_width=True, key="modal_text_upload_btn"):
+                                with st.spinner("🔄 Adding text to knowledge base…"):
+                                    try:
+                                        resp = requests.post(
+                                            f"{BACKEND_URL}/admin/upload_text",
+                                            headers={"x-admin-token": ADMIN_TOKEN},
+                                            json={
+                                                "text_content": text_content,
+                                                "source_name": source_name or "User Text Input"
+                                            },
+                                            timeout=300
+                                        )
+                                        if resp.status_code == 200:
+                                            data = resp.json()
+                                            st.success("✅ Text added to knowledge base successfully!")
+                                            st.info(f"**Source:** {data.get('source')}\n\n**Characters Added:** {data.get('text_length'):,}")
+                                            st.balloons()
+                                            st.rerun()
+                                        else:
+                                            detail = resp.json().get("detail", resp.text) if "application/json" in resp.headers.get("content-type", "") else resp.text
+                                            st.error(f"❌ Error {resp.status_code}: {detail}")
+                                    except Exception as e:
+                                        st.error(f"❌ Connection error: {e}")
+                        
+                        with clear_col:
+                            if st.button("🗑️ Clear", use_container_width=True, key="modal_clear_text"):
+                                st.rerun()
+                    else:
+                        st.info("👆 Enter your text above to get started")
+            
+            with tab3:
+                st.markdown("### Clear Knowledge Base")
+                st.warning("⚠️ This will permanently delete the knowledge base and vector store.")
+                st.caption("After deletion, the chatbot will not be able to answer questions until a new PDF is uploaded.")
+                
+                if st.button("🔴 Delete All Knowledge", use_container_width=True, key="modal_clear_btn"):
+                    if st.session_state.get("modal_confirm_clear", False):
+                        with st.spinner("🔄 Clearing knowledge base…"):
+                            try:
+                                resp = requests.post(
+                                    f"{BACKEND_URL}/admin/clear_knowledge",
+                                    headers={"x-admin-token": ADMIN_TOKEN},
+                                    timeout=30
+                                )
+                                if resp.status_code == 200:
+                                    st.success("✅ Knowledge base cleared successfully.")
+                                    st.info("Upload a new PDF to rebuild the knowledge base.")
+                                    st.session_state.modal_confirm_clear = False
+                                    st.rerun()
+                                else:
+                                    st.error(f"❌ Error {resp.status_code}: {resp.text}")
+                            except Exception as e:
+                                st.error(f"❌ Connection error: {e}")
+                    else:
+                        st.warning("❗ Click the button again to confirm deletion")
+                        st.session_state.modal_confirm_clear = True
+            
+            with tab4:
+                st.markdown("### Chat Logs History")
+                try:
+                    resp = requests.get(
+                        f"{BACKEND_URL}/admin/logs",
+                        headers={"x-admin-token": ADMIN_TOKEN},
+                        timeout=10
+                    )
+                    if resp.status_code == 200:
+                        logs = resp.json()
+                        if logs:
+                            import pandas as pd
+                            
+                            # Prepare data for table
+                            rows = []
+                            for log in logs:
+                                rows.append({
+                                    "Session ID": log["session_id"][:12] + "…",
+                                    "Sender": "👤 User" if log["role"] == "user" else "🍽️ Bot",
+                                    "Message": (log["content"][:60] + "…") if len(log["content"]) > 60 else log["content"],
+                                    "Timestamp": log["timestamp"]
+                                })
+                            
+                            df = pd.DataFrame(rows)
+                            st.dataframe(df, use_container_width=True, hide_index=True)
+                            
+                            # Summary stats
+                            st.markdown("---")
+                            stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
+                            with stat_col1:
+                                st.metric("📊 Total Messages", len(logs))
+                            with stat_col2:
+                                user_count = sum(1 for l in logs if l["role"] == "user")
+                                st.metric("👤 User Messages", user_count)
+                            with stat_col3:
+                                bot_count = sum(1 for l in logs if l["role"] == "assistant")
+                                st.metric("🍽️ Bot Responses", bot_count)
+                            with stat_col4:
+                                unique_sessions = len(set(l["session_id"] for l in logs))
+                                st.metric("🔗 Unique Sessions", unique_sessions)
+                            
+                            # Full message view
+                            if st.checkbox("📖 View Full Messages", key="view_full_logs"):
+                                st.markdown("---")
+                                for i, log in enumerate(reversed(logs[:20])):
+                                    st.markdown(f"**{i+1}. {log['role'].upper()}** — {log['timestamp']}")
+                                    st.code(log["content"], language="text")
+                                    st.divider()
+                        else:
+                            st.info("📭 No chat history yet")
+                    else:
+                        st.error(f"❌ Error {resp.status_code}: {resp.text}")
+                except Exception as e:
+                    st.error(f"❌ Could not fetch logs: {e}")
+    
+    st.markdown("---")
+
 st.markdown('<div class="chat-wrapper">', unsafe_allow_html=True)
-st.markdown('<div class="chat-title">Restaurant Assistant</div>', unsafe_allow_html=True)
+st.markdown('<div class="chat-title">🍽️ Restaurant Assistant</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="chat-subtitle">Ask me anything about our menu, hours, reservations & more</div>',
     unsafe_allow_html=True
 )
 
+# Display chat messages
 for msg in st.session_state.messages:
     render_message(msg["role"], msg["content"])
 
@@ -453,7 +760,7 @@ if user_input := st.chat_input("Type your question…"):
             resp = requests.post(
                 f"{BACKEND_URL}/chat",
                 json={"session_id": st.session_state.session_id, "message": user_input},
-                timeout=120
+                timeout=300
             )
             if resp.status_code == 200:
                 answer = resp.json()["answer"]
