@@ -22,6 +22,7 @@ chatbot.db
 
 # Files
 dummy.py
+temp_knowledge.txt
 
 # IDE
 .vscode/
