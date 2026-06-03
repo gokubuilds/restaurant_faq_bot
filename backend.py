@@ -145,7 +145,8 @@ def build_rag_chain(pdf_path: str, pdf_name: str) -> Optional[RetrievalQA]:
         finally:
             db.close()
 
-        return chain
+        rag_chain = chain
+        return rag_chain
 
     except Exception as e:
         print(f"[Build] Error building RAG chain: {e}")
@@ -236,7 +237,7 @@ def add_text_to_knowledge_base(text_content: str, source_name: str) -> Optional[
             db.close()
 
         rag_chain = chain
-        return chain
+        return rag_chain
 
     except Exception as e:
         print(f"[Text] Error adding text to knowledge base: {e}")
