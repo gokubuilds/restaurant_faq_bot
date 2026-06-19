@@ -20,9 +20,8 @@ from sqlalchemy.orm import Session
 # LangChain / Ollama / FAISS
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_ollama import OllamaEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_ollama import ChatOllama
 from langchain_groq import ChatGroq
 from langchain_classic.chains.retrieval_qa.base import RetrievalQA
 from langchain_classic.prompts import PromptTemplate
@@ -36,7 +35,6 @@ from database import ChatHistory, KnowledgeBase, get_db, init_db, SessionLocal
 FAISS_DIR    = "./faiss_db"           # persists until admin clears it
 UPLOAD_DIR   = "./uploaded_pdfs"      # all uploaded PDFs stored here
 TEMP_TEXT_FILE = "./temp_knowledge.txt"  # temporary text file for text-based knowledge
-OLLAMA_BASE_URL = "http://localhost:11434"
 ADMIN_TOKEN  = "Admin123"
 
 Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
@@ -72,6 +70,7 @@ from dotenv import load_dotenv
 
 load_dotenv() # Loads the .env file
 api_key = os.getenv("groq_api")
+google_api_key=os.getenv("GOOGLE_API_KEY")
 
 # ─────────────────────────────────────────────
 # Global RAG state
@@ -97,7 +96,10 @@ def build_rag_chain(pdf_path: str, pdf_name: str) -> Optional[RetrievalQA]:
         splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
         chunks   = splitter.split_documents(docs)
 
-        embeddings = OllamaEmbeddings(model="all-minilm:l6-v2")
+        embeddings =  GoogleGenerativeAIEmbeddings(
+            model="models/gemini-embedding-001",
+            google_api_key=google_api_key
+        )
 
         # Wipe old FAISS index so the new PDF is the sole source
         if os.path.exists(FAISS_DIR):
@@ -180,7 +182,10 @@ def add_text_to_knowledge_base(text_content: str, source_name: str) -> Optional[
         
         print(f"[Text] Created {len(chunks)} chunks from text file")
 
-        embeddings = OllamaEmbeddings(model="all-minilm:l6-v2")
+        embeddings =  GoogleGenerativeAIEmbeddings(
+            model="models/gemini-embedding-001",
+            google_api_key=google_api_key
+        )
 
         # Check if FAISS index exists
         index_file = Path(FAISS_DIR) / f"{FAISS_INDEX_NAME}.faiss"
@@ -254,7 +259,10 @@ def load_existing_chain() -> Optional[RetrievalQA]:
         if not index_file.exists():
             return None
 
-        embeddings = OllamaEmbeddings(model="all-minilm:l6-v2")
+        embeddings =  GoogleGenerativeAIEmbeddings(
+            model="models/gemini-embedding-001",
+            google_api_key=google_api_key
+        )
         vector_store = FAISS.load_local(
             FAISS_DIR,
             embeddings,
