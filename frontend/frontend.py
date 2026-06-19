@@ -9,7 +9,7 @@ import uuid
 import requests
 import streamlit as st
 
-BACKEND_URL = "http://localhost:8001"
+BACKEND_URL = "https://restaurant-faq-bot-u8my.onrender.com"
 ADMIN_TOKEN = "Admin123"
 
 # ─────────────────────────────────────────────
