@@ -16,12 +16,12 @@ FRONTEND_CMD = [sys.executable, "-m", "streamlit", "run", "frontend.py",
 
 
 def main():
-    print("=" * 55)
-    print("  🚀  Starting RAG Chatbot")
-    print("  Backend  → http://localhost:8000")
-    print("  Frontend → http://localhost:8501")
-    print("  Press Ctrl+C to stop both servers.")
-    print("=" * 55)
+    # print("=" * 55)
+    # print("  🚀  Starting RAG Chatbot")
+    # print("  Backend  → http://localhost:8000")
+    # print("  Frontend → http://localhost:8501")
+    # print("  Press Ctrl+C to stop both servers.")
+    # print("=" * 55)
 
     backend  = subprocess.Popen(BACKEND_CMD)
     time.sleep(2)                          # give FastAPI a head-start
