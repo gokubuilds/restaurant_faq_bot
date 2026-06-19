@@ -32,9 +32,9 @@ from database import ChatHistory, KnowledgeBase, get_db, init_db, SessionLocal
 # ─────────────────────────────────────────────
 # Config
 # ─────────────────────────────────────────────
-FAISS_DIR    = "./faiss_db"           # persists until admin clears it
-UPLOAD_DIR   = "./uploaded_pdfs"      # all uploaded PDFs stored here
-TEMP_TEXT_FILE = "./temp_knowledge.txt"  # temporary text file for text-based knowledge
+FAISS_DIR    = "../faiss_db"           # persists until admin clears it
+UPLOAD_DIR   = "../uploaded_pdfs"      # all uploaded PDFs stored here
+TEMP_TEXT_FILE = "../temp_knowledge.txt"  # temporary text file for text-based knowledge
 ADMIN_TOKEN  = "Admin123"
 
 Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
