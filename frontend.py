@@ -9,7 +9,7 @@ import uuid
 import requests
 import streamlit as st
 
-BACKEND_URL = "http://localhost:8000"
+BACKEND_URL = "http://localhost:8001"
 ADMIN_TOKEN = "Admin123"
 
 # ─────────────────────────────────────────────
@@ -27,53 +27,106 @@ st.set_page_config(
 # ─────────────────────────────────────────────
 GLASS_CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+    --anthropic-font: "Anthropic", "Styrene B", "Inter", Arial, sans-serif;
+    --ink: #111111;
+    --paper: #fffaf0;
+    --panel: #ffffff;
+    --accent: #ff5a1f;
+    --accent-2: #fae100;
+    --mint: #79f2c0;
+    --danger: #ff3b30;
+    --shadow: 7px 7px 0 #111111;
+    --shadow-sm: 4px 4px 0 #111111;
+}
 
 html, body, [data-testid="stAppViewContainer"] {
-    font-family: 'Inter', sans-serif;
-    background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%) !important;
+    font-family: var(--anthropic-font);
+    background:
+        linear-gradient(90deg, rgba(17, 17, 17, 0.055) 1px, transparent 1px),
+        linear-gradient(rgba(17, 17, 17, 0.055) 1px, transparent 1px),
+        var(--paper) !important;
+    background-size: 32px 32px !important;
     min-height: 100vh;
-    color: #e8eaed;
+    color: var(--ink);
 }
 
 [data-testid="stHeader"] { background: transparent !important; }
 
+h1, h2, h3, h4, h5, h6,
+[data-testid="stMarkdownContainer"] h1,
+[data-testid="stMarkdownContainer"] h2,
+[data-testid="stMarkdownContainer"] h3,
+[data-testid="stMarkdownContainer"] h4,
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li,
+[data-testid="stCaptionContainer"] {
+    color: var(--ink) !important;
+    font-family: var(--anthropic-font) !important;
+}
+
+[data-testid="stMarkdownContainer"] h1,
+[data-testid="stMarkdownContainer"] h2,
+[data-testid="stMarkdownContainer"] h3 {
+    font-weight: 900 !important;
+    line-height: 1.15 !important;
+}
+
+[data-testid="stMarkdownContainer"] h2,
+[data-testid="stMarkdownContainer"] h3 {
+    background: var(--panel);
+    border: 3px solid var(--ink);
+    box-shadow: var(--shadow-sm);
+    display: inline-block;
+    padding: 0.35rem 0.55rem;
+}
+
 [data-testid="stSidebar"] {
-    background: linear-gradient(135deg, #1a1f2e 0%, #242b3d 100%) !important;
-    border-right: 2px solid #00d4ff !important;
-    box-shadow: -4px 0 15px rgba(0, 212, 255, 0.15) !important;
+    background: var(--panel) !important;
+    border-right: 4px solid var(--ink) !important;
+    box-shadow: 8px 0 0 var(--ink) !important;
 }
 
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
-    color: #e8eaed !important;
+    color: var(--ink) !important;
 }
 
 #MainMenu, footer, header { visibility: hidden; }
 
+* {
+    letter-spacing: 0 !important;
+}
+
 .chat-wrapper {
-    max-width: 800px;
+    max-width: 860px;
     margin: 0 auto;
-    padding: 2.5rem 1.5rem 6rem;
+    padding: 2.25rem 1.5rem 6.5rem;
 }
 
 .chat-title {
     text-align: center;
-    font-size: 2.2rem;
-    font-weight: 700;
-    background: linear-gradient(90deg, #00d4ff 0%, #00f7ff 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    font-size: 2.65rem;
+    font-weight: 900;
+    color: var(--ink);
+    text-transform: uppercase;
     margin-bottom: 0.5rem;
-    letter-spacing: -0.5px;
+    line-height: 1;
+    text-shadow: 3px 3px 0 var(--accent-2);
 }
 
 .chat-subtitle {
     text-align: center;
     font-size: 1rem;
-    color: #a0aec0;
-    margin-bottom: 2.5rem;
-    font-weight: 400;
+    color: var(--ink);
+    margin: 0 auto 2.5rem;
+    font-weight: 800;
+    display: table;
+    background: var(--mint);
+    border: 3px solid var(--ink);
+    box-shadow: var(--shadow-sm);
+    padding: 0.55rem 0.8rem;
 }
 
 .msg-row {
@@ -87,136 +140,432 @@ html, body, [data-testid="stAppViewContainer"] {
 .msg-row.bot   { flex-direction: row; }
 
 .avatar {
-    width: 40px; height: 40px;
-    border-radius: 50%;
+    width: 42px; height: 42px;
+    border-radius: 0;
     display: flex; align-items: center; justify-content: center;
     font-size: 1.2rem; flex-shrink: 0; font-weight: 600;
+    border: 3px solid var(--ink);
+    box-shadow: var(--shadow-sm);
 }
 .avatar.user {
-    background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
-    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.4);
+    background: var(--accent-2);
+    color: var(--ink);
 }
 .avatar.bot {
-    background: linear-gradient(135deg, #ff6b35 0%, #ff9500 100%);
-    box-shadow: 0 4px 16px rgba(255, 107, 53, 0.4);
+    background: var(--accent);
+    color: var(--panel);
 }
 
 .bubble {
-    max-width: 70%;
-    padding: 1rem 1.25rem;
-    border-radius: 16px;
-    line-height: 1.65;
+    max-width: 72%;
+    padding: 1rem 1.15rem;
+    border-radius: 0;
+    line-height: 1.6;
     font-size: 0.95rem;
     word-break: break-word;
+    border: 3px solid var(--ink);
+    box-shadow: var(--shadow-sm);
+    font-weight: 700;
 }
 .bubble.user {
-    background: linear-gradient(135deg, #0099ff 0%, #00d4ff 100%);
-    color: #ffffff;
-    border-bottom-right-radius: 4px;
-    box-shadow: 0 8px 24px rgba(0, 153, 255, 0.35);
+    background: var(--accent-2);
+    color: var(--ink);
 }
 .bubble.bot {
-    background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
-    border: 1.5px solid #00d4ff;
-    color: #e8eaed;
-    border-bottom-left-radius: 4px;
-    box-shadow: 0 8px 24px rgba(0, 212, 255, 0.15);
+    background: var(--panel);
+    color: var(--ink);
 }
 
 /* KB status badge */
 .kb-status-active {
-    background: rgba(0, 255, 120, 0.15);
-    border: 1px solid #00ff78;
-    border-radius: 8px;
+    background: var(--mint);
+    border: 3px solid var(--ink);
+    border-radius: 0;
     padding: 0.6rem 0.9rem;
-    color: #00ff78;
+    color: var(--ink);
     font-size: 0.88rem;
-    font-weight: 500;
+    font-weight: 900;
     margin-bottom: 0.5rem;
+    box-shadow: var(--shadow-sm);
 }
 .kb-status-inactive {
-    background: rgba(255, 80, 80, 0.15);
-    border: 1px solid #ff5050;
-    border-radius: 8px;
+    background: #ffd5d0;
+    border: 3px solid var(--ink);
+    border-radius: 0;
     padding: 0.6rem 0.9rem;
-    color: #ff5050;
+    color: var(--ink);
     font-size: 0.88rem;
-    font-weight: 500;
+    font-weight: 900;
     margin-bottom: 0.5rem;
+    box-shadow: var(--shadow-sm);
+}
+
+[data-testid="stBottom"],
+[data-testid="stBottom"] > div,
+[data-testid="stBottomBlockContainer"],
+[data-testid="stBottomBlockContainer"] > div {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+[data-testid="stBottom"] {
+    padding: 0 !important;
+}
+
+[data-testid="stBottomBlockContainer"] {
+    padding: 0 1.5rem 1.25rem !important;
+}
+
+[data-testid="stChatInput"] {
+    width: min(720px, calc(100vw - 48px)) !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
 }
 
 [data-testid="stChatInput"] > div {
-    background: #1a1f2e !important;
-    border: 2px solid #00d4ff !important;
-    border-radius: 12px !important;
-    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.2) !important;
+    min-height: 46px !important;
+    background: #ffffff !important;
+    border: 3px solid var(--ink) !important;
+    border-radius: 0 !important;
+    box-shadow: 6px 6px 0 var(--ink) !important;
+    padding: 0 !important;
+    overflow: hidden !important;
 }
+
+[data-testid="stChatInput"] > div:focus-within {
+    border-color: var(--ink) !important;
+    box-shadow: 6px 6px 0 var(--ink) !important;
+}
+
+[data-testid="stChatInput"] div[data-baseweb="textarea"],
+[data-testid="stChatInput"] div[data-baseweb="base-input"],
+[data-testid="stChatInput"] div[data-baseweb="textarea"] > div,
+[data-testid="stChatInput"] [data-baseweb="textarea"] {
+    background: #ffffff !important;
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+}
+
+[data-testid="stChatInput"] textarea,
 [data-testid="stChatInput"] input {
-    color: #e8eaed !important;
+    min-height: 40px !important;
+    background: #ffffff !important;
+    color: var(--ink) !important;
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
     font-size: 0.95rem !important;
+    font-weight: 900 !important;
+    line-height: 1.25 !important;
+    padding: 0.75rem 0.9rem !important;
+    -webkit-text-fill-color: var(--ink) !important;
 }
-[data-testid="stChatInput"] input::placeholder { color: #64748b !important; }
+
+[data-testid="stChatInput"] button {
+    width: 46px !important;
+    min-width: 46px !important;
+    height: 46px !important;
+    background: #ffffff !important;
+    color: var(--ink) !important;
+    border: 0 !important;
+    border-left: 3px solid var(--ink) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+[data-testid="stChatInput"] button:hover,
+[data-testid="stChatInput"] button:active {
+    background: #ffffff !important;
+    color: var(--ink) !important;
+}
+
+[data-testid="stChatInput"] button svg {
+    color: var(--ink) !important;
+    fill: var(--ink) !important;
+    stroke: var(--ink) !important;
+}
+
+[data-testid="stChatInput"] input::placeholder,
+[data-testid="stChatInput"] textarea::placeholder {
+    color: var(--ink) !important;
+    opacity: 1 !important;
+    font-weight: 900 !important;
+}
 
 .stDataFrame {
-    border-radius: 12px;
+    border: 3px solid var(--ink);
+    border-radius: 0;
     overflow: hidden;
-    background: #1a1f2e !important;
-    color: #e8eaed !important;
+    background: var(--panel) !important;
+    color: var(--ink) !important;
+    box-shadow: var(--shadow-sm);
 }
 
 .stTextInput > div > div > input,
-.stPasswordInput > div > div > input {
-    background: #1a1f2e !important;
-    color: #e8eaed !important;
-    border: 1.5px solid #00d4ff !important;
-    border-radius: 8px !important;
+.stPasswordInput > div > div > input,
+.stTextArea textarea {
+    background: var(--panel) !important;
+    color: var(--ink) !important;
+    border: 3px solid var(--ink) !important;
+    border-radius: 0 !important;
     font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    box-shadow: var(--shadow-sm) !important;
 }
 .stTextInput > div > div > input::placeholder,
-.stPasswordInput > div > div > input::placeholder { color: #64748b !important; }
+.stPasswordInput > div > div > input::placeholder,
+.stTextArea textarea::placeholder { color: #525252 !important; }
 
 .stButton > button {
-    background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
-    color: #0f1419;
-    border: none;
-    border-radius: 8px;
+    background: var(--panel) !important;
+    color: var(--ink) !important;
+    border: 3px solid var(--ink) !important;
+    border-radius: 0 !important;
     padding: 0.6rem 1.4rem;
-    font-family: 'Inter', sans-serif;
-    font-weight: 600;
+    font-family: var(--anthropic-font);
+    font-weight: 900;
     font-size: 0.95rem;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+    text-transform: uppercase;
+    transition: all 0.1s ease-in-out;
+    box-shadow: var(--shadow-sm) !important;
 }
 .stButton > button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(0, 212, 255, 0.4);
+    background: var(--accent-2) !important;
+    color: var(--ink) !important;
+    border: 3px solid var(--ink) !important;
+}
+.stButton > button:active {
+    transform: translate(3px, 3px);
+    box-shadow: 1px 1px 0 var(--ink) !important;
+    background: var(--ink) !important;
+    color: var(--panel) !important;
 }
 
 [data-testid="stFileUploader"] {
-    border: 2px dashed #00d4ff !important;
-    background: rgba(0, 212, 255, 0.05) !important;
-    border-radius: 8px !important;
+    border: 3px dashed var(--ink) !important;
+    background: var(--panel) !important;
+    border-radius: 0 !important;
+    box-shadow: var(--shadow-sm);
 }
 
-.stSpinner { color: #00d4ff !important; }
+.stSpinner { color: var(--accent) !important; }
+
+[data-testid="stExpander"],
+div[role="dialog"] {
+    background: var(--panel) !important;
+    border: 4px solid var(--ink) !important;
+    border-radius: 0 !important;
+    box-shadow: var(--shadow) !important;
+}
+
+div[role="dialog"] {
+    width: min(760px, calc(100vw - 48px)) !important;
+    padding: 1.5rem 1.75rem 1.75rem !important;
+}
+
+div[role="dialog"] [data-testid="stVerticalBlock"] {
+    gap: 1rem !important;
+}
+
+div[role="dialog"] .stTextInput {
+    margin-bottom: 0.25rem !important;
+}
+
+div[role="dialog"] .stTextInput label {
+    color: var(--ink) !important;
+    font-family: var(--anthropic-font) !important;
+    font-weight: 900 !important;
+}
+
+div[role="dialog"] .stButton > button {
+    width: auto !important;
+    min-width: 94px !important;
+    padding: 0.55rem 0.9rem !important;
+    letter-spacing: 0.08em !important;
+}
+
+[data-testid="stTabs"] button {
+    border-radius: 0 !important;
+    font-weight: 900 !important;
+}
+
+[data-testid="stTabs"] [role="tablist"] {
+    gap: 0.85rem !important;
+    border-bottom: none !important;
+    margin: 1.2rem 0 2rem !important;
+}
+
+[data-testid="stTabs"] [role="tab"] {
+    background: var(--panel) !important;
+    border: 3px solid var(--ink) !important;
+    border-radius: 0 !important;
+    box-shadow: var(--shadow-sm) !important;
+    min-height: 48px !important;
+    padding: 0.6rem 1rem !important;
+}
+
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
+    background: var(--accent-2) !important;
+}
+
+[data-testid="stTabs"] [role="tab"] p {
+    color: var(--ink) !important;
+    font-family: var(--anthropic-font) !important;
+    font-size: 0.92rem !important;
+    font-weight: 900 !important;
+}
+
+[data-testid="stAlert"] {
+    background: #fff7b8 !important;
+    border: 3px solid var(--ink) !important;
+    border-radius: 0 !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+[data-testid="stAlert"] *,
+[data-testid="stAlert"] p {
+    color: var(--ink) !important;
+    font-weight: 800 !important;
+}
+
+[data-testid="stMetric"] {
+    background: var(--panel);
+    border: 3px solid var(--ink);
+    box-shadow: var(--shadow-sm);
+    padding: 1rem 1.15rem;
+    min-height: 108px;
+}
+
+[data-testid="stMetric"] label,
+[data-testid="stMetric"] [data-testid="stMetricLabel"],
+[data-testid="stMetric"] [data-testid="stMetricValue"] {
+    color: var(--ink) !important;
+    font-family: var(--anthropic-font) !important;
+}
+
+[data-testid="stMetric"] label,
+[data-testid="stMetric"] [data-testid="stMetricLabel"] {
+    font-size: 0.95rem !important;
+    font-weight: 900 !important;
+}
+
+.admin-title {
+    text-align: center;
+    color: var(--ink);
+    font-weight: 900;
+    font-size: 2.05rem;
+    text-transform: uppercase;
+    text-shadow: 3px 3px 0 var(--accent-2);
+    margin: 2rem auto 0.65rem;
+    display: table;
+    background: var(--panel);
+    border: 4px solid var(--ink);
+    box-shadow: var(--shadow);
+    padding: 0.35rem 0.85rem;
+}
+
+.admin-auth-state {
+    color: var(--ink);
+    font-weight: 900;
+    margin: 1rem auto 1.5rem;
+    background: var(--mint);
+    border: 3px solid var(--ink);
+    box-shadow: var(--shadow-sm);
+    padding: 0.65rem 0.85rem;
+    display: table;
+}
+
+.admin-auth-state span {
+    color: var(--ink);
+    background: var(--accent-2);
+    padding: 0.1rem 0.35rem;
+    border: 2px solid var(--ink);
+}
+
+.admin-subtitle {
+    color: #3f3a31;
+    font-size: 0.98rem;
+    font-weight: 800;
+    margin: 0 auto 2rem;
+    text-align: center;
+}
+
+.admin-section-spacer {
+    margin-top: 1.5rem;
+}
+
+.admin-login-title {
+    text-align: center;
+    margin: 0 auto 1.25rem;
+}
 
 /* Floating Admin Button */
 .floating-admin-btn {
     position: fixed;
-    bottom: 30px;
+    top: 30px;
     right: 30px;
     z-index: 999;
 }
 .floating-admin-btn button {
     width: 60px;
     height: 60px;
-    border-radius: 50%;
+    border-radius: 0;
     font-size: 1.5rem;
     padding: 0 !important;
-    box-shadow: 0 4px 12px rgba(0, 212, 255, 0.4) !important;
+    box-shadow: var(--shadow-sm) !important;
+    background: var(--accent-2) !important;
+    border: 3px solid var(--ink) !important;
+    color: var(--ink) !important;
 }
 .floating-admin-btn button:hover {
-    transform: scale(1.1);
+    transform: translate(-2px, -2px);
+    background: var(--mint) !important;
+    color: var(--ink) !important;
+    border-color: var(--ink) !important;
+}
+
+/* Phone/Mobile compatibility adjustments */
+@media (max-width: 640px) {
+    .chat-wrapper {
+        padding: 1.5rem 0.5rem 5rem;
+    }
+    .chat-title {
+        font-size: 1.8rem;
+    }
+    .chat-subtitle {
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+    }
+    .bubble {
+        max-width: 85%;
+        padding: 0.85rem 1rem;
+        font-size: 0.9rem;
+    }
+    .avatar {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+    .msg-row {
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .floating-admin-btn {
+        top: 15px;
+        right: 15px;
+    }
+    .floating-admin-btn button {
+        width: 50px;
+        height: 50px;
+        font-size: 1.25rem;
+    }
 }
 </style>
 """
@@ -268,6 +617,20 @@ def fetch_kb_status() -> dict:
     except Exception:
         pass
     return {"kb_loaded": False, "current_pdf": None, "vector_store_on_disk": False}
+
+
+@st.dialog("Admin Panel")
+def admin_login_dialog():
+    username = st.text_input("Username", placeholder="", key="dialog_admin_user")
+    password = st.text_input("Password", type="password", placeholder="", key="dialog_admin_pass")
+
+    if st.button("Log In", key="dialog_admin_login"):
+        if username.strip() == "Admin" and password == "Admin123":
+            st.session_state.admin_logged_in = True
+            st.session_state.show_admin_modal = True
+            st.rerun()
+        else:
+            st.error("Invalid credentials")
 
 
 # ─────────────────────────────────────────────
@@ -452,54 +815,53 @@ with st.sidebar:
 # ─────────────────────────────────────────────
 # Admin Panel Modal (Opens with button)
 # ─────────────────────────────────────────────
-col1, col2, col3 = st.columns([0.8, 0.1, 0.1])
-with col3:
-    if st.button("⚙️", help="Admin Panel", key="floating_admin_btn"):
-        st.session_state.show_admin_modal = not st.session_state.show_admin_modal
+# Floating admin button HTML
+# st.markdown(
+#     """
+#     <div class="floating-admin-btn">
+#         <button onclick="document.getElementById('floating_admin_toggle').click()" 
+#                 style="cursor: pointer;">⚙️</button>
+#     </div>
+#     """,
+#     unsafe_allow_html=True
+# )
 
-if st.session_state.show_admin_modal:
+# Hidden button to toggle state
+if st.button("⚙️", key="floating_admin_btn"):
+    if st.session_state.admin_logged_in:
+        st.session_state.show_admin_modal = not st.session_state.show_admin_modal
+    else:
+        st.session_state.show_admin_modal = False
+        admin_login_dialog()
+
+admin_dashboard_open = (
+    st.session_state.show_admin_modal and st.session_state.admin_logged_in
+)
+
+if st.session_state.show_admin_modal and st.session_state.admin_logged_in:
     st.markdown("---")
     admin_container = st.container()
     with admin_container:
-        st.markdown("<h3 style='text-align: center; color: #00d4ff;'>🔒 Admin Panel</h3>", unsafe_allow_html=True)
-        
-        if not st.session_state.admin_logged_in:
-            # Login Form
-            st.markdown("<div style='background: rgba(26, 31, 46, 0.8); border: 1px solid #00d4ff; border-radius: 12px; padding: 20px; margin-bottom: 20px;'>", unsafe_allow_html=True)
-            st.markdown("#### Admin Login")
-            
-            login_col1, login_col2 = st.columns(2)
-            with login_col1:
-                username = st.text_input("👤 Username", placeholder="Enter username", key="modal_user")
-            with login_col2:
-                password = st.text_input("🔐 Password", type="password", placeholder="Enter password", key="modal_pass")
-            
-            login_btn_col1, login_btn_col2, login_btn_col3 = st.columns([1, 1, 1])
-            with login_btn_col2:
-                if st.button("🔓 Login", use_container_width=True, key="modal_login"):
-                    if username.strip() == "Admin" and password == "Admin123":
-                        st.session_state.admin_logged_in = True
-                        st.success("✅ Logged in successfully!")
-                        st.rerun()
-                    else:
-                        st.error("❌ Invalid credentials")
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        else:
-            # Admin Dashboard After Login
-            st.markdown(f"<div style='color: #00ff78; font-weight: bold; margin-bottom: 15px;'>✅ Logged in as: <span style='color: #00d4ff;'>Admin</span></div>", unsafe_allow_html=True)
+        st.markdown('<h3 class="admin-title">Admin Panel</h3>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="admin-subtitle">Manage knowledge base content, review logs, and control admin settings.</div>',
+            unsafe_allow_html=True
+        )
+        # Admin Dashboard After Login
+        with st.container():
+            st.markdown('<div class="admin-auth-state">Logged in as: <span>Admin</span></div>', unsafe_allow_html=True)
             
             # Top Controls
-            btn_col1, btn_col2, btn_col3 = st.columns(3)
-            with btn_col1:
-                if st.button("🔄 Refresh", use_container_width=True, key="modal_refresh"):
+            action_gap_left, action_col1, action_col2, action_col3, action_gap_right = st.columns([1.4, 1, 1, 1, 1.4])
+            with action_col1:
+                if st.button("Refresh", use_container_width=True, key="modal_refresh"):
                     st.rerun()
-            with btn_col2:
+            with action_col2:
                 if st.button("Close Panel", use_container_width=True, key="modal_close"):
                     st.session_state.show_admin_modal = False
                     st.rerun()
-            with btn_col3:
-                if st.button("🚪 Logout", use_container_width=True, key="modal_logout"):
+            with action_col3:
+                if st.button("Logout", use_container_width=True, key="modal_logout"):
                     st.session_state.admin_logged_in = False
                     st.session_state.show_admin_modal = False
                     st.rerun()
@@ -507,7 +869,7 @@ if st.session_state.show_admin_modal:
             st.markdown("---")
             
             # Tabs for different admin sections
-            tab1, tab2, tab3, tab4 = st.tabs(["📡 KB Status", "📤 Upload PDF", "🗑️ Clear KB", "📊 Chat Logs"])
+            tab1, tab2, tab3, tab4 = st.tabs(["KB Status", "Upload Content", "Clear Knowledge", "Chat Logs"])
             
             with tab1:
                 st.markdown("### Knowledge Base Status")
@@ -529,10 +891,10 @@ if st.session_state.show_admin_modal:
                 st.caption("Add content to your knowledge base via PDF upload or text input")
                 
                 # Subtabs for PDF and Text
-                subtab1, subtab2 = st.tabs(["📄 PDF Upload", "📝 Text Input"])
+                subtab1, subtab2 = st.tabs(["PDF Upload", "Text Input"])
                 
                 with subtab1:
-                    st.markdown("#### 📄 Upload PDF")
+                    st.markdown("#### Upload PDF")
                     st.caption("Upload a PDF file to build or replace your knowledge base")
                     
                     uploaded_file = st.file_uploader(
@@ -548,9 +910,9 @@ if st.session_state.show_admin_modal:
                         # File Details
                         col1, col2 = st.columns(2)
                         with col1:
-                            st.metric("📄 Filename", uploaded_file.name)
+                            st.metric("Filename", uploaded_file.name)
                         with col2:
-                            st.metric("📊 File Size", f"{file_size_mb:.2f} MB")
+                            st.metric("File Size", f"{file_size_mb:.2f} MB")
                         
                         st.divider()
                         
@@ -584,7 +946,7 @@ if st.session_state.show_admin_modal:
                         st.info("👆 Select a PDF file above to get started")
                 
                 with subtab2:
-                    st.markdown("#### 📝 Add Text Content")
+                    st.markdown("#### Add Text Content")
                     st.caption("Paste text content to add to your knowledge base (menu, hours, policies, FAQs, etc.)")
                     
                     # Source name for reference
@@ -613,9 +975,9 @@ if st.session_state.show_admin_modal:
                         
                         stat_col1, stat_col2 = st.columns(2)
                         with stat_col1:
-                            st.metric("📊 Characters", f"{char_count:,}")
+                            st.metric("Characters", f"{char_count:,}")
                         with stat_col2:
-                            st.metric("📄 Words", f"{word_count:,}")
+                            st.metric("Words", f"{word_count:,}")
                         
                         st.divider()
                         
@@ -710,19 +1072,19 @@ if st.session_state.show_admin_modal:
                             st.markdown("---")
                             stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
                             with stat_col1:
-                                st.metric("📊 Total Messages", len(logs))
+                                st.metric("Total Messages", len(logs))
                             with stat_col2:
                                 user_count = sum(1 for l in logs if l["role"] == "user")
-                                st.metric("👤 User Messages", user_count)
+                                st.metric("User Messages", user_count)
                             with stat_col3:
                                 bot_count = sum(1 for l in logs if l["role"] == "assistant")
-                                st.metric("🍽️ Bot Responses", bot_count)
+                                st.metric("Bot Responses", bot_count)
                             with stat_col4:
                                 unique_sessions = len(set(l["session_id"] for l in logs))
-                                st.metric("🔗 Unique Sessions", unique_sessions)
+                                st.metric("Unique Sessions", unique_sessions)
                             
                             # Full message view
-                            if st.checkbox("📖 View Full Messages", key="view_full_logs"):
+                            if st.checkbox("View Full Messages", key="view_full_logs"):
                                 st.markdown("---")
                                 for i, log in enumerate(reversed(logs[:20])):
                                     st.markdown(f"**{i+1}. {log['role'].upper()}** — {log['timestamp']}")
@@ -737,42 +1099,43 @@ if st.session_state.show_admin_modal:
     
     st.markdown("---")
 
-st.markdown('<div class="chat-wrapper">', unsafe_allow_html=True)
-st.markdown('<div class="chat-title">🍽️ Restaurant Assistant</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="chat-subtitle">Ask me anything about our menu, hours, reservations & more</div>',
-    unsafe_allow_html=True
-)
+if not admin_dashboard_open:
+    st.markdown('<div class="chat-wrapper">', unsafe_allow_html=True)
+    st.markdown('<div class="chat-title">🍽️ Restaurant Assistant</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="chat-subtitle">Ask me anything about our menu, hours, reservations & more</div>',
+        unsafe_allow_html=True
+    )
 
-# Display chat messages
-for msg in st.session_state.messages:
-    render_message(msg["role"], msg["content"])
+    # Display chat messages
+    for msg in st.session_state.messages:
+        render_message(msg["role"], msg["content"])
 
-st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# ── Chat input ──
-if user_input := st.chat_input("Type your question…"):
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    render_message("user", user_input)
+    # ── Chat input ──
+    if user_input := st.chat_input("Type your question…"):
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        render_message("user", user_input)
 
-    with st.spinner(""):
-        try:
-            resp = requests.post(
-                f"{BACKEND_URL}/chat",
-                json={"session_id": st.session_state.session_id, "message": user_input},
-                timeout=300
-            )
-            if resp.status_code == 200:
-                answer = resp.json()["answer"]
-            elif resp.status_code == 503:
-                answer = ("The knowledge base isn't ready yet. "
-                          "Please ask the admin to upload a PDF.")
-            else:
-                answer = f"Backend error ({resp.status_code}). Please try again."
-        except requests.exceptions.ConnectionError:
-            answer = "⚠️ Cannot connect to the backend. Make sure `run.py` is running."
-        except Exception as e:
-            answer = f"Unexpected error: {e}"
+        with st.spinner(""):
+            try:
+                resp = requests.post(
+                    f"{BACKEND_URL}/chat",
+                    json={"session_id": st.session_state.session_id, "message": user_input},
+                    timeout=300
+                )
+                if resp.status_code == 200:
+                    answer = resp.json()["answer"]
+                elif resp.status_code == 503:
+                    answer = ("The knowledge base isn't ready yet. "
+                              "Please ask the admin to upload a PDF.")
+                else:
+                    answer = f"Backend error ({resp.status_code}). Please try again."
+            except requests.exceptions.ConnectionError:
+                answer = "⚠️ Cannot connect to the backend. Make sure `run.py` is running."
+            except Exception as e:
+                answer = f"Unexpected error: {e}"
 
-    st.session_state.messages.append({"role": "assistant", "content": answer})
-    render_message("assistant", answer)
+        st.session_state.messages.append({"role": "assistant", "content": answer})
+        render_message("assistant", answer)
